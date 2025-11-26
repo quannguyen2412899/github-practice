@@ -12,15 +12,103 @@
 | Google Colab Notebook | *[Chưa có - Cần cập nhật sau]* |
 
 ---
+## 🔧 Yêu cầu hệ thống và phụ thuộc
 
-### Tóm tắt hệ thống
-- Hệ thống sử dụng cấu trúc dữ liệu **Trie** để nén dữ liệu và áp dụng các đặc trưng thống kê như **tần suất**, **độ dài** và **entropy cục bộ** tại mỗi nút để xác định các chuỗi có cấu trúc hoặc hành vi bất thường (**anomalies**).
-- Phương pháp phát hiện bất thường sử dụng kỹ thuật **Phần vị (percentile)**, đảm bảo tính vững chắc trước sự lệch của phân phối tần suất chuỗi.
+Để chạy toàn bộ pipeline, hệ thống của bạn cần đáp ứng các yêu cầu sau:
+
+#### 1. Biên dịch C++
+* **Compiler:** GNU C++ Compiler (g++), hỗ trợ chuẩn C++17 trở lên.
+* **Thư viện Bên ngoài:** **nlohmann/json**
+    * Sử dụng bởi module **`bin/analyze`** để xuất các file JSON cấu trúc Trie.
+    * File header `json.hpp` được đặt trong thư mục `include/` của dự án và được link vào lúc biên dịch.
+
+#### 2. Môi trường Python
+* **Python:** Python 3.9.
+* **Thư viện Python:** **`graphviz`**
+    ```bash
+    pip install graphviz
+    ```
+
+#### 3. Công cụ hệ thống graphviz
+**Graphviz Engine (dot):** Chuyển đổi file DOT (được sinh ra bởi script Python) thành hình ảnh.
+* **Trên Debian/Ubuntu:** `sudo apt-get install graphviz`
+* **Trên macOS (Homebrew):** `brew install graphviz`
+* **Hoặc tải trực tiếp từ website:** `https://graphviz.org/`
+    
+*Lưu ý:* Nếu chạy trên Google Colab, bạn có thể cần dùng lệnh `!apt install graphviz` trong notebook.
+
+---
+
+## 🏗️ Biên dịch
+
+```bash
+# Bước 1: Tạo thư mục chứa các executable
+mkdir -p bin
+
+# Bước 2: Biên dịch các module C++
+g++ -std=c++17 -I./include src/preprocess.cpp src/Preprocessor.cpp -o bin/preprocess
+g++ -std=c++17 -I./include src/analyze.cpp src/Analysis.cpp src/StatTrie.cpp -o bin/analyze
+g++ -std=c++17 -I./include src/visualize.cpp -o bin/visualize
+g++ -std=c++17 -I./include src/main_pipeline.cpp -o main_pipeline
+```
+
+-----
+
+## 🚀 Chạy chương trình
+
+Toàn bộ quá trình xử lý được điều phối thông qua chương trình chính: **`./main_pipeline`**.
+
+#### Cú pháp chung
+```bash
+./main_pipeline <input_file> <output_dir> [preprocessing_flags] [visualization_flags]
+```
+
+#### Ví dụ
+
+Lệnh chạy cơ bản, thực hiện phân tích đầy đủ và xuất biểu đồ cây **rút gọn** (chỉ hiển thị các bất thường) vào thư mục `results/`:
+```bash
+./main_pipeline data/sample.log results --visual-partial
+```
+-----
+
+## 🚩 Chi tiết các Cờ (Flags)
+
+#### 1\. Cờ Tiền xử lý
+
+Các cờ này kiểm soát cách dữ liệu đầu vào được làm sạch và tách chuỗi.
+
+  * **Mặc định:** `--delim`: `\n` (luôn bao gồm). `--ignore`: `\r` (luôn bao gồm).
+  * **Ưu tiên:** Cờ `--regex` có **ưu tiên cao nhất**, ghi đè mọi thiết lập `delim`/`ignore` khác.
+
+| Flag | Mô tả | Ví dụ |
+| :--- | :--- | :--- |
+| **`--regex="<pattern>"`** | Lọc chuỗi theo biểu thức chính quy để trích xuất các trường dữ liệu cụ thể. | `--regex="[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}"` |
+| **`--delim="<chars>"`** | Chuỗi ký tự phân cách custom. | `--delim=","` |
+| **`--ignore="<chars>"`** | Chuỗi ký tự cần loại bỏ khỏi chuỗi. | `--ignore=",.!?"` |
+
+#### 2\. Cờ Trực quan hóa
+
+Yêu cầu `bin/analyze` tạo ra file JSON, sau đó được `bin/visualize` chuyển đổi thành hình ảnh.
+
+| Flag | Mô tả | File JSON/PNG Xuất ra |
+| :--- | :--- | :--- |
+| **`--visual-complete`** | Xuất JSON và vẽ **toàn bộ** cây Trie. | `complete_trie.json`, `complete_trie.png` |
+| **`--visual-partial`** | **Khuyến nghị:** Xuất JSON và vẽ cây rút gọn (chỉ hiển thị các nhánh chứa bất thường). | `partial_trie.json`, `partial_trie.png` |
+| **`--visual-freq`** | Xuất JSON và vẽ chỉ các nhánh liên quan đến **Bất thường Tần suất**. | `freq_anomalies.json`, `freq_anomalies.png` |
+| **`--visual-len`** | Xuất JSON và vẽ chỉ các nhánh liên quan đến **Bất thường Độ dài**. | `len_anomalies.json`, `len_anomalies.png` |
+| **`--visual-entropy`** | Xuất JSON và vẽ chỉ các nhánh liên quan đến **Bất thường Entropy**. | `entropy_anomalies.json`, `entropy_anomalies.png` |
+
+
+-----
+## Chi tiết hệ thống
+### ⚙️ Tóm tắt
+- Hệ thống sử dụng cấu trúc dữ liệu **Trie** để nén dữ liệu và áp dụng các đặc trưng thống kê như **tần suất**, **độ dài** và **entropy cục bộ** tại mỗi nút để xác định các chuỗi có cấu trúc hoặc hành vi **bất thường**.
+- Phương pháp phát hiện bất thường sử dụng kỹ thuật **phần vị**, đảm bảo tính vững chắc trước sự lệch của phân phối tần suất chuỗi.
 
 ### 💡 Ý tưởng Cốt lõi và Lợi ích của Trie
 Hệ thống sử dụng cấu trúc dữ liệu **Trie** với hai mục đích chính:
-1.  **Nén Dữ liệu:** Chia sẻ prefix chung giữa các chuỗi, giúp tiết kiệm bộ nhớ và đạt được mức nén đáng kể trên các tập dữ liệu log/URL lớn.
-2.  **Lưu trữ Thống kê Hiệu quả:** Mỗi nút (Node) trên Trie là một vị trí lý tưởng để lưu trữ các đặc trưng thống kê cục bộ (như **Tần suất**, **Độ dài**, **Entropy**) cần thiết cho việc phân tích nhánh.
+- **Nén Dữ liệu:** Chia sẻ prefix chung giữa các chuỗi, giúp tiết kiệm bộ nhớ và đạt được mức nén đáng kể trên các tập dữ liệu log/URL lớn.
+- **Lưu trữ Thống kê Hiệu quả:** Mỗi nút (Node) trên Trie là một vị trí lý tưởng để lưu trữ các đặc trưng thống kê cục bộ (như **Tần suất**, **Độ dài**, **Entropy**) cần thiết cho việc phân tích nhánh.
 
 ### 🔬 Phương pháp Phát hiện Bất thường
 Thay vì sử dụng các chỉ số thống kê truyền thống như Mean/Standard Deviation (dễ bị ảnh hưởng bởi dữ liệu lệch), hệ thống áp dụng phương pháp **Phần vị (Percentile)** để xác định ngưỡng một cách vững chắc.
@@ -34,8 +122,8 @@ Bất thường được xác định dựa trên ba tiêu chí chính:
 
 *Các giá trị P5 và P95 được tính dựa trên phân phối trọng số của toàn bộ dữ liệu, đảm bảo ngưỡng ổn định ngay cả khi dữ liệu đầu vào bị lệch mạnh.*
 
----
-### 🏗️ Sơ đồ Pipeline Tổng thể
+
+### 🏗️ Sơ đồ pipeline tổng thể
 
 Hệ thống được thiết kế dưới dạng một chuỗi lệnh (pipeline) được điều phối bởi executable **`main_pipeline`**. Dữ liệu được xử lý tuần tự qua ba module chính:
 
@@ -43,16 +131,16 @@ Hệ thống được thiết kế dưới dạng một chuỗi lệnh (pipeline
 2.  **Phân tích (Analyze):** Xây dựng Trie, tính toán thống kê và phát hiện bất thường.
 3.  **Trực quan hóa (Visualize):** Chuyển đổi kết quả JSON thành biểu đồ cây Trie dạng PNG/SVG.
 
-### Luồng Dữ liệu giữa các Module
+### ✉️ Luồng dữ liệu giữa các module
 
 | Executable | Chức năng Chính | Đầu vào | Đầu ra Chính |
 | :--- | :--- | :--- | :--- |
-| **`main_pipeline`** | **Điều phối** các module, xử lý flags (`--visual-x`, `--regex=`). | `<input_file>`, `<output_dir>` | Là các đầu ra của 3 module còn lại |
+| **`main_pipeline`** | **Điều phối** các module. | `<input_file>`, `<output_dir>` | Là các đầu ra của 3 module còn lại |
 | **`bin/preprocess`** | Chuẩn hóa, làm sạch chuỗi. | `<input_file>` | `cleaned_input_text.txt` |
-| **`bin/analyze`** | Xây dựng Trie, tính toán Phần vị, đánh dấu bất thường, xuất báo cáo. | `cleaned_input_text.txt` | `overall_report.txt`<br>`all_entries.csv`<br>**{3 file CSV Anomaly}**<br>**{Các file JSON cho Visualize}** |
-| **`bin/visualize`** | Wrapper C++ gọi script Python để render biểu đồ Graphviz. | `*.json` (từ Analyze) | `*.png` (Biểu đồ Trie) |
+| **`bin/analyze`** | Xây dựng Trie, tính toán Phần vị, đánh dấu bất thường, xuất báo cáo. | `cleaned_input_text.txt` | `overall_report.txt`<br>`all_entries.csv`<br>`3 file CSV Anomaly`<br>`\*.json` |
+| **`bin/visualize`** | Wrapper C++ gọi script Python để vẽ trie. | `*.json` | `*.png` |
 
-### Chi tiết các File Output Quan trọng
+### 📋 Chi tiết các File Output Quan trọng
 
 Module **`bin/analyze`** tạo ra các kết quả định lượng sau:
 * `overall_report.txt`: Báo cáo tóm tắt chứa các **ngưỡng Phần vị (P5, P95)** được tính toán thực tế.
@@ -63,41 +151,4 @@ Module **`bin/analyze`** tạo ra các kết quả định lượng sau:
 * `*.json`: Các file chứa cấu trúc Trie đã được lọc/đánh dấu, dùng làm đầu vào cho module `visualize`.
 
 ---
-### 🔧 Yêu cầu Hệ thống và Phụ thuộc
 
-Để chạy toàn bộ pipeline, hệ thống của bạn cần đáp ứng các yêu cầu sau:
-
-#### 1. Biên dịch C++ (Analysis & Pipeline)
-* **Compiler:** GNU C++ Compiler (g++), hỗ trợ chuẩn C++17 trở lên.
-* **Thư viện Bên ngoài:** **nlohmann/json**
-    * Thư viện này được sử dụng trong module **`bin/analyze`** để xuất các file JSON cấu trúc Trie.
-    * *Cách sử dụng:* File header `json.hpp` được đặt trong thư mục `include/` của dự án và được link vào lúc biên dịch.
-
-#### 2. Môi trường Python (Visualization)
-* **Python:** Python 3.9.
-* **Thư viện Python:** **`graphviz`**
-    ```bash
-    pip install graphviz
-    ```
-
-#### 3. Công cụ Hệ thống (Visualization Engine)
-**Graphviz Engine (dot):** Cần có công cụ dòng lệnh **`dot`** được cài đặt trên hệ thống của bạn. Công cụ này chịu trách nhiệm chuyển đổi file DOT (được sinh ra bởi script Python) thành hình ảnh PNG/SVG.
-
-* **Trên Debian/Ubuntu:** `sudo apt-get install graphviz`
-* **Trên macOS (Homebrew):** `brew install graphviz`
-* **Hoặc tải trực tiếp từ website:** `https://graphviz.org/`
-    
-*Lưu ý:* Nếu chạy trên Google Colab, bạn có thể cần dùng lệnh `!apt install graphviz` trong notebook.
-
-### 🏗️ Biên dịch (Dành cho Local và Colab)
-
-```bash
-# Bước 1: Tạo thư mục chứa các executable
-mkdir -p bin
-
-# Bước 2: Biên dịch các module C++
-g++ -std=c++17 -I./include src/preprocess_module.cpp -o bin/preprocess
-g++ -std=c++17 -I./include src/analyze_module.cpp -o bin/analyze
-g++ -std=c++17 -I./include src/visualize_module.cpp -o bin/visualize
-g++ -std=c++17 -I./include src/main_pipeline.cpp -o main_pipeline
-```
