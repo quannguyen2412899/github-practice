@@ -16,20 +16,20 @@
 
 Để chạy toàn bộ pipeline, hệ thống của bạn cần đáp ứng các yêu cầu sau:
 
-#### 1. Biên dịch C++
+#### 1. C++
 * **Compiler:** GNU C++ Compiler (g++), hỗ trợ chuẩn C++17 trở lên.
 * **Thư viện Bên ngoài:** **nlohmann/json**
     * Sử dụng bởi module **`bin/analyze`** để xuất các file JSON cấu trúc Trie.
     * File header `json.hpp` được đặt trong thư mục `include/` của dự án và được link vào lúc biên dịch.
 
-#### 2. Môi trường Python
+#### 2. Python
 * **Python:** Python 3.9.
 * **Thư viện Python:** **`graphviz`**
     ```bash
     pip install graphviz
     ```
 
-#### 3. Công cụ hệ thống graphviz
+#### 3. Graphviz
 **Graphviz Engine (dot):** Chuyển đổi file DOT (được sinh ra bởi script Python) thành hình ảnh.
 * **Trên Debian/Ubuntu:** `sudo apt-get install graphviz`
 * **Trên macOS (Homebrew):** `brew install graphviz`
@@ -71,7 +71,7 @@ Lệnh chạy cơ bản, thực hiện phân tích đầy đủ và xuất biể
 ```
 -----
 
-## 🚩 Chi tiết các Cờ (Flags)
+## 🚩 Chi tiết các cờ
 
 #### 1\. Cờ Tiền xử lý
 
